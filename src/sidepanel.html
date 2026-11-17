@@ -27,11 +27,24 @@
         <select id="uiLang"></select>
       </label>
       <label>
+        <span data-i18n="server"></span>
+        <input id="base" type="url" spellcheck="false" placeholder="http://localhost:11434" />
+      </label>
+      <label>
         <span data-i18n="model"></span>
         <div class="row">
           <select id="model"></select>
           <button id="refreshModels" class="icon-btn small" data-i18n-title="reloadModels">↻</button>
         </div>
+      </label>
+      <label>
+        <span data-i18n="badgeServer"></span>
+        <input id="badgeBase" type="url" spellcheck="false" data-i18n-placeholder="sameServer" />
+      </label>
+      <label>
+        <span data-i18n="badgeModel"></span>
+        <select id="badgeModel"></select>
+        <small id="badgeMsg" class="hint" data-i18n="badgeModelHint"></small>
       </label>
       <label>
         <span data-i18n="summaryLang"></span>
@@ -53,10 +66,13 @@
         <span data-i18n="interests"></span>
         <textarea id="interests" rows="3" data-i18n-placeholder="interestsPlaceholder"></textarea>
       </label>
-      <label>
-        <span data-i18n="server"></span>
-        <input id="base" type="url" spellcheck="false" placeholder="http://localhost:11434" />
-      </label>
+      <div class="field cache">
+        <span data-i18n="cache"></span>
+        <div class="cache-actions">
+          <button id="clearVerdicts" class="link" data-i18n="clearVerdicts"></button>
+          <button id="clearSummaries" class="link" data-i18n="clearSummaries"></button>
+        </div>
+      </div>
       <p id="settingsMsg" class="hint"></p>
     </section>
 

@@ -33,8 +33,17 @@ chrome.runtime.onStartup.addListener(installOllamaRule);
 
 // ------------------------------------------------------------------ Thumbnail verdicts
 
-const DEFAULTS = { uiLang: defaultUiLang(), base: 'http://localhost:11434', model: '', lang: defaultUiLang(), interests: '' };
+const DEFAULTS = { uiLang: defaultUiLang(), base: 'http://localhost:11434', model: '', badgeBase: '', badgeModel: '', lang: defaultUiLang(), interests: '' };
+// A settings problem: the content script stops instead of retrying every thumbnail.
+const fatal = (message) => Object.assign(new Error(message), { fatal: true });
+
 let queue = Promise.resolve(); // one Ollama job at a time, across all tabs
+let running = 0; // jobs queued or in progress, shown on the toolbar icon
+
+function showActivity() {
+  chrome.action.setBadgeBackgroundColor({ color: '#e8453c' });
+  chrome.action.setBadgeText({ text: running ? String(running) : '' });
+}
 
 const handlers = {
   // Fast triage: discard, from the title alone, whatever is far from the user's briefing.
@@ -68,14 +77,24 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 
   const handler = handlers[msg?.type];
   if (!handler) return false;
+  running++;
+  showActivity();
   const job = queue.then(async () => {
     const settings = await chrome.storage.sync.get(DEFAULTS);
     setLocale(settings.uiLang);
-    if (!settings.model) throw new Error(t('noModelChosen'));
-    return handler(msg, settings);
+    const model = settings.badgeModel || settings.model; // badges may use a smaller, faster model
+    if (!model) throw fatal(t('noModelChosen'));
+    // Subscription-backed models (claude-bridge, "*:max") are for occasional summaries,
+    // not for analysing dozens of thumbnails in a row.
+    if (model.endsWith(':max')) throw fatal(t('badgeModelLocalOnly'));
+    return handler(msg, { ...settings, base: settings.badgeBase || settings.base, model });
   });
   queue = job.catch(() => {});
-  job.then(sendResponse, (e) => sendResponse({ error: e.message }));
+  job.finally(() => {
+    running--;
+    showActivity();
+  }).catch(() => {});
+  job.then(sendResponse, (e) => sendResponse({ error: e.message, fatal: !!e.fatal }));
   return true; // async response
 });
 

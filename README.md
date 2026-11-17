@@ -27,9 +27,9 @@ After changing the code: click ↻ on the extension card, then reload the YouTub
 | `src/sidepanel.*` | UI: streamed summary, clickable timestamps (jump in the video), per-video cache, settings |
 | `src/background.js` | Opens the panel, runs thumbnail verdicts (single queue), and strips the `Origin` header from the extension's requests to localhost (otherwise Ollama answers 403) |
 
-Settings (top-right icon): interface language, model, summary language, length (short / detailed), thumbnail verdicts on/off, interests briefing, Ollama URL.
+Settings (top-right icon): interface language, summary server and model, thumbnail server and model (e.g. a local Ollama for thumbnails and a remote one for summaries), summary language, length (short / detailed), thumbnail verdicts on/off, interests briefing.
 
-Cache in `chrome.storage.local`: `sum:<videoId>` (summary) and `verdict:<videoId>` (badge; replaced by the full summary's verdict, which is more reliable). Verdicts are cleared when the briefing changes.
+Cache in `chrome.storage.local`: `sum:<videoId>` (summary) and `verdict:<videoId>` (badge; replaced by the full summary's verdict, which is more reliable). Verdicts are cleared when the briefing changes; both caches can also be cleared from the settings (**Re-analyse thumbnails**, **Clear saved summaries**).
 
 ### Thumbnail verdicts
 

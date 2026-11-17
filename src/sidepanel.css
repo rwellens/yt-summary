@@ -231,3 +231,7 @@ a.ts:hover { background: var(--accent); color: #fff; transform: translateY(-1px)
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+
+.cache-actions { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+.cache-actions .link { padding: 0; }

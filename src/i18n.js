@@ -8,7 +8,18 @@ const UI = {
     brand: 'Summary',
     settings: 'Settings',
     uiLang: 'Interface language',
-    model: 'Ollama model',
+    model: 'Summary model',
+    badgeModel: 'Thumbnail model',
+    badgeModelHint: 'Use a small, fast model: it analyses many videos in a row.',
+    sameAsSummary: 'Same as summary',
+    badgeModelLocalOnly: 'Thumbnails need a local model: pick one in “Thumbnail model” (subscription models are for summaries only).',
+    cache: 'Cache',
+    clearVerdicts: 'Re-analyse thumbnails',
+    clearSummaries: 'Clear saved summaries',
+    clearedVerdicts_one: '{n} thumbnail verdict cleared: visible thumbnails are being analysed again.',
+    clearedVerdicts_other: '{n} thumbnail verdicts cleared: visible thumbnails are being analysed again.',
+    clearedSummaries_one: '{n} summary cleared.',
+    clearedSummaries_other: '{n} summaries cleared.',
     reloadModels: 'Reload the list',
     summaryLang: 'Summary language',
     length: 'Length',
@@ -18,7 +29,9 @@ const UI = {
     badgesHint: 'Automatic analysis of visible videos',
     interests: 'What I care about (for the verdict)',
     interestsPlaceholder: 'e.g. web development, local AI, electric cars. No vlogs.',
-    server: 'Ollama server',
+    server: 'Summary server (Ollama)',
+    badgeServer: 'Thumbnail server (Ollama)',
+    sameServer: 'Same as summary',
     empty: 'Open a YouTube video, then come back here.',
     summarize: 'Summarize the video',
     regenerate: 'Regenerate',
@@ -42,6 +55,9 @@ const UI = {
     writing: 'Writing the summary…',
     analysing: 'Analysing…',
     analysingTitle: 'YT Summary is analysing this video with Ollama',
+    statusTriage: 'Sorting {n} titles…',
+    statusVerdict: 'Analysing “{title}”',
+    statusQueue: '+{n} waiting',
     watch: 'Worth watching',
     skim: 'Skim it',
     skip: 'Summary is enough',
@@ -51,7 +67,18 @@ const UI = {
     brand: 'Résumé',
     settings: 'Réglages',
     uiLang: "Langue de l'interface",
-    model: 'Modèle Ollama',
+    model: 'Modèle du résumé',
+    badgeModel: 'Modèle des vignettes',
+    badgeModelHint: 'Choisis un petit modèle rapide : il analyse beaucoup de vidéos à la suite.',
+    sameAsSummary: 'Identique au résumé',
+    badgeModelLocalOnly: 'Les vignettes demandent un modèle local : choisis-en un dans « Modèle des vignettes » (les modèles d\u2019abonnement sont réservés aux résumés).',
+    cache: 'Cache',
+    clearVerdicts: 'Réanalyser les vignettes',
+    clearSummaries: 'Effacer les résumés enregistrés',
+    clearedVerdicts_one: '{n} verdict de vignette effacé : les vignettes visibles sont réanalysées.',
+    clearedVerdicts_other: '{n} verdicts de vignettes effacés : les vignettes visibles sont réanalysées.',
+    clearedSummaries_one: '{n} résumé effacé.',
+    clearedSummaries_other: '{n} résumés effacés.',
     reloadModels: 'Recharger la liste',
     summaryLang: 'Langue du résumé',
     length: 'Longueur',
@@ -61,7 +88,9 @@ const UI = {
     badgesHint: 'Analyse automatique des vidéos visibles',
     interests: "Ce qui m'intéresse (pour le verdict)",
     interestsPlaceholder: 'Ex. : développement web, IA locale, voitures électriques. Pas de vlogs.',
-    server: 'Serveur Ollama',
+    server: 'Serveur du résumé (Ollama)',
+    badgeServer: 'Serveur des vignettes (Ollama)',
+    sameServer: 'Identique au résumé',
     empty: 'Ouvre une vidéo YouTube, puis reviens ici.',
     summarize: 'Résumer la vidéo',
     regenerate: 'Régénérer',
@@ -85,6 +114,9 @@ const UI = {
     writing: 'Rédaction du résumé…',
     analysing: 'Analyse…',
     analysingTitle: 'YT Summary analyse cette vidéo avec Ollama',
+    statusTriage: 'Tri de {n} titres…',
+    statusVerdict: 'Analyse de « {title} »',
+    statusQueue: '+{n} en attente',
     watch: 'À regarder',
     skim: 'En accéléré',
     skip: 'Résumé suffit',
@@ -155,7 +187,10 @@ export function t(key, vars = {}) {
 
 /** Labels needed by the content script (which cannot import modules). */
 export function badgeLabels() {
-  return Object.fromEntries(['watch', 'skim', 'skip', 'off', 'analysing', 'analysingTitle'].map((k) => [k, t(k)]));
+  const keys = ['watch', 'skim', 'skip', 'off', 'analysing', 'analysingTitle', 'statusTriage', 'statusVerdict', 'statusQueue'];
+  // Placeholders are kept as-is: the content script fills them in.
+  const keep = { n: '{n}', title: '{title}' };
+  return Object.fromEntries(keys.map((k) => [k, k.startsWith('status') ? UI[locale][k] ?? UI.en[k] : t(k, keep)]));
 }
 
 /** Applies translations to elements carrying data-i18n / data-i18n-title / data-i18n-placeholder. */

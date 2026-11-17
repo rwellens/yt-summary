@@ -10,6 +10,8 @@ const DEFAULTS = {
   uiLang: defaultUiLang(),
   base: 'http://localhost:11434',
   model: '',
+  badgeBase: '', // empty: same server as the summary
+  badgeModel: '',
   lang: defaultUiLang(),
   length: 'short',
   interests: '',
@@ -35,6 +37,7 @@ async function loadSettings() {
   $('lang').innerHTML = options(Object.entries(OUTPUT_LANGUAGES).map(([k, v]) => [k, v.label]));
   $('lang').value = settings.lang;
   $('base').value = settings.base;
+  $('badgeBase').value = settings.badgeBase;
   $('interests').value = settings.interests;
   $('badges').checked = settings.badges;
   document.querySelector(`input[name="length"][value="${settings.length}"]`).checked = true;
@@ -47,6 +50,10 @@ async function saveSettings(patch) {
 }
 
 async function loadModels() {
+  await Promise.all([loadSummaryModels(), loadBadgeModels()]);
+}
+
+async function loadSummaryModels() {
   const sel = $('model');
   const msg = $('settingsMsg');
   try {
@@ -59,6 +66,30 @@ async function loadModels() {
     msg.classList.remove('bad');
   } catch (e) {
     sel.innerHTML = settings.model ? `<option>${settings.model}</option>` : '';
+    msg.textContent = e.message;
+    msg.classList.add('bad');
+  }
+}
+
+// Thumbnails may run on another Ollama (e.g. a local one, while summaries go
+// through a remote server). Without a server of their own, they can reuse the
+// summary model ("same as summary").
+async function loadBadgeModels() {
+  const sel = $('badgeModel');
+  const msg = $('badgeMsg');
+  const own = !!settings.badgeBase;
+  try {
+    const models = await listModels(settings.badgeBase || settings.base);
+    if (!models.length) throw new Error(t('noModels'));
+    sel.innerHTML = options([...(own ? [] : [['', t('sameAsSummary')]]), ...models.map((m) => [m, m])]);
+    if (settings.badgeModel ? !models.includes(settings.badgeModel) : own) {
+      await saveSettings({ badgeModel: own ? models[0] : '' });
+    }
+    sel.value = settings.badgeModel;
+    msg.textContent = t('badgeModelHint');
+    msg.classList.remove('bad');
+  } catch (e) {
+    sel.innerHTML = settings.badgeModel ? `<option>${settings.badgeModel}</option>` : '';
     msg.textContent = e.message;
     msg.classList.add('bad');
   }
@@ -77,6 +108,7 @@ $('uiLang').addEventListener('change', async (e) => {
   render();
 });
 $('model').addEventListener('change', (e) => saveSettings({ model: e.target.value }));
+$('badgeModel').addEventListener('change', (e) => saveSettings({ badgeModel: e.target.value }));
 $('lang').addEventListener('change', (e) => saveSettings({ lang: e.target.value }));
 $('refreshModels').addEventListener('click', loadModels);
 $('badges').addEventListener('change', (e) => saveSettings({ badges: e.target.checked }));
@@ -84,11 +116,30 @@ $('interests').addEventListener('change', (e) => saveSettings({ interests: e.tar
 document.querySelectorAll('input[name="length"]').forEach((r) =>
   r.addEventListener('change', (e) => saveSettings({ length: e.target.value })),
 );
+// Cache: thumbnail verdicts (verdict:<id>) and summaries (sum:<id>).
+async function clearCache(prefix, msgKey) {
+  const all = await chrome.storage.local.get(null);
+  const keys = Object.keys(all).filter((k) => k.startsWith(prefix));
+  await chrome.storage.local.remove(keys);
+  // Tells the content scripts to forget in-memory states too (errors, videos without captions).
+  if (prefix === 'verdict:') await chrome.storage.local.set({ cacheReset: Date.now() });
+  const msg = $('settingsMsg');
+  msg.classList.remove('bad');
+  msg.textContent = t(msgKey, { n: keys.length });
+}
+$('clearVerdicts').addEventListener('click', () => clearCache('verdict:', 'clearedVerdicts'));
+$('clearSummaries').addEventListener('click', () => clearCache('sum:', 'clearedSummaries'));
 $('base').addEventListener('change', async (e) => {
   const v = e.target.value.trim().replace(/\/+$/, '') || DEFAULTS.base;
   e.target.value = v;
   await saveSettings({ base: v });
-  loadModels();
+  loadModels(); // the thumbnail list may depend on this server too
+});
+$('badgeBase').addEventListener('change', async (e) => {
+  const v = e.target.value.trim().replace(/\/+$/, '');
+  e.target.value = v;
+  await saveSettings({ badgeBase: v, badgeModel: '' });
+  loadBadgeModels();
 });
 
 // ---------------------------------------------------------------- Active tab

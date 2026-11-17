@@ -142,6 +142,30 @@
     }
   }
 
+  // ------------------------------------------------------------ Status pill
+
+  // Small floating indicator, bottom-left, visible only while something is being analysed.
+  let pill = null;
+  const fill = (tpl, vars) => (tpl || '').replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? '');
+
+  function showStatus(text, waiting = 0) {
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.className = 'yts-status';
+      pill.setAttribute('role', 'status');
+      pill.innerHTML = '<span class="yts-spinner" aria-hidden="true"></span><span class="yts-status-text"></span><span class="yts-status-queue"></span>';
+      document.body.appendChild(pill);
+    }
+    pill.querySelector('.yts-status-text').textContent = text;
+    pill.querySelector('.yts-status-queue').textContent = waiting > 0 ? fill(labels.statusQueue, { n: waiting }) : '';
+    pill.title = text;
+    pill.classList.add('on');
+  }
+
+  function hideStatus() {
+    pill?.classList.remove('on');
+  }
+
   // ------------------------------------------------------------ Analysis queue
 
   // Visible videos without a verdict, top to bottom (reading order).
@@ -161,24 +185,25 @@
     batch.forEach((id) => triaged.add(id)); // even without a readable title: avoids an endless loop
     const items = batch.filter((id) => titles.get(id)?.title).map((id) => ({ id, ...titles.get(id) }));
     if (!items.length) return false;
+    showStatus(fill(labels.statusTriage, { n: items.length }));
     try {
       const res = await chrome.runtime.sendMessage({ type: 'triage', items });
-      if (res?.error) throw new Error(res.error);
+      if (res?.error) throw Object.assign(new Error(res.error), { fatal: res.fatal });
       for (const [id, v] of Object.entries(res.verdicts || {})) {
         verdicts.set(id, v);
         repaintAll(id);
       }
     } catch (e) {
       console.debug('[YT Summary] triage', e.message);
-      if (/Ollama|Extension context/.test(e.message)) enabled = false;
+      if (e.fatal || /Ollama|Extension context/.test(e.message)) enabled = false;
     }
     return true;
   }
 
   async function pump() {
-    if (!enabled || busy || document.hidden) return;
+    if (!enabled || busy || document.hidden) return hideStatus();
     const ids = pendingVisibleIds();
-    if (!ids.length) return;
+    if (!ids.length) return hideStatus();
     busy = true;
 
     if (hasBriefing && ids.some((id) => !triaged.has(id))) {
@@ -191,6 +216,7 @@
     const id = ids[0];
     verdicts.set(id, 'pending');
     repaintAll(id);
+    showStatus(fill(labels.statusVerdict, { title: titles.get(id)?.title || id }), ids.length - 1);
 
     try {
       const segments = await fetchTranscript(id);
@@ -204,13 +230,13 @@
           meta: { videoId: id, title: titles.get(id)?.title || '', author: titles.get(id)?.channel || '' },
           segments,
         });
-        if (res?.error) throw new Error(res.error);
+        if (res?.error) throw Object.assign(new Error(res.error), { fatal: res.fatal });
         verdicts.set(id, res.verdict); // the service worker also stores it
       }
     } catch (e) {
       console.debug('[YT Summary]', id, e.message);
       verdicts.set(id, 'error'); // no retry until the next page load
-      if (/Ollama|Extension context/.test(e.message)) enabled = false; // no point in insisting
+      if (e.fatal || /Ollama|Extension context/.test(e.message)) enabled = false; // no point in insisting
     }
 
     repaintAll(id);
@@ -234,6 +260,7 @@
 
   function stop() {
     enabled = false;
+    hideStatus();
     mo.disconnect();
     document.querySelectorAll('.yts-badge').forEach((b) => b.remove());
     document.querySelectorAll(`a[${ATTR}]`).forEach((a) => a.removeAttribute(ATTR));
@@ -245,6 +272,14 @@
     if (area === 'sync' && changes.badges) changes.badges.newValue ? start() : stop();
     if (area === 'sync' && changes.uiLang) loadLabels().then(() => repaintAll());
     if (area === 'sync' && changes.interests) hasBriefing = !!changes.interests.newValue?.trim();
+    if (area === 'local' && changes.cacheReset) {
+      // Cache cleared from the side panel: forget everything, including errors, and start over.
+      verdicts.clear();
+      triaged.clear();
+      repaintAll();
+      chrome.storage.sync.get({ badges: true }).then((s) => s.badges && start());
+      return;
+    }
     if (area === 'local') {
       let cleared = false;
       for (const [key, { newValue }] of Object.entries(changes)) {
