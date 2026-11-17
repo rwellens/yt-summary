@@ -1,0 +1,7 @@
+{
+  "appName": { "message": "YT Summary" },
+  "appDesc": {
+    "message": "Résume la vidéo YouTube en cours et indique sur les vignettes si elles valent la peine d'être regardées. LLM local (Ollama) : gratuit, rien ne quitte ta machine."
+  },
+  "actionTitle": { "message": "Résumer la vidéo" }
+}

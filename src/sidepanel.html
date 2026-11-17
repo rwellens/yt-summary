@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>YT Summary</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <span data-i18n="brand"></span>
+      </div>
+      <button id="settingsBtn" class="icon-btn" data-i18n-title="settings" aria-expanded="false" aria-controls="settings">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+          <circle cx="16" cy="7" r="2" />
+          <circle cx="10" cy="17" r="2" />
+        </svg>
+      </button>
+    </header>
+
+    <section id="settings" class="settings" hidden>
+      <label>
+        <span data-i18n="uiLang"></span>
+        <select id="uiLang"></select>
+      </label>
+      <label>
+        <span data-i18n="model"></span>
+        <div class="row">
+          <select id="model"></select>
+          <button id="refreshModels" class="icon-btn small" data-i18n-title="reloadModels">↻</button>
+        </div>
+      </label>
+      <label>
+        <span data-i18n="summaryLang"></span>
+        <select id="lang"></select>
+      </label>
+      <div class="field">
+        <span data-i18n="length"></span>
+        <div class="segmented" role="radiogroup">
+          <label><input type="radio" name="length" value="short" /><span data-i18n="short"></span></label>
+          <label><input type="radio" name="length" value="long" /><span data-i18n="long"></span></label>
+        </div>
+      </div>
+      <label class="switch">
+        <input id="badges" type="checkbox" />
+        <i aria-hidden="true"></i>
+        <span><span data-i18n="badges"></span><br /><small data-i18n="badgesHint"></small></span>
+      </label>
+      <label>
+        <span data-i18n="interests"></span>
+        <textarea id="interests" rows="3" data-i18n-placeholder="interestsPlaceholder"></textarea>
+      </label>
+      <label>
+        <span data-i18n="server"></span>
+        <input id="base" type="url" spellcheck="false" placeholder="http://localhost:11434" />
+      </label>
+      <p id="settingsMsg" class="hint"></p>
+    </section>
+
+    <main id="main">
+      <div id="empty" class="empty" hidden>
+        <div class="empty-art" aria-hidden="true"></div>
+        <p data-i18n="empty"></p>
+      </div>
+
+      <article id="video" class="video" hidden>
+        <div class="thumb"><img id="thumb" alt="" /></div>
+        <h1 id="title"></h1>
+        <p id="author" class="muted"></p>
+
+        <button id="summarizeBtn" class="primary">
+          <span class="spark" aria-hidden="true">✦</span>
+          <span id="summarizeLabel"></span>
+        </button>
+
+        <div id="status" class="status" hidden>
+          <span class="pulse"></span><span id="statusText"></span>
+          <button id="stopBtn" class="link" data-i18n="stop"></button>
+        </div>
+
+        <div id="skeleton" class="skeleton" hidden>
+          <i></i><i></i><i></i><i class="short"></i>
+        </div>
+
+        <div id="error" class="error" hidden></div>
+
+        <div id="output" class="output" hidden></div>
+
+        <footer id="actions" class="actions" hidden>
+          <span id="meta" class="muted"></span>
+          <button id="copyBtn" class="link" data-i18n="copy"></button>
+        </footer>
+      </article>
+    </main>
+
+    <script type="module" src="sidepanel.js"></script>
+  </body>
+</html>

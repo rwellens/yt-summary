@@ -1,0 +1,7 @@
+{
+  "appName": { "message": "YT Summary" },
+  "appDesc": {
+    "message": "Summarizes the current YouTube video and tells you on thumbnails whether videos are worth watching. Local LLM (Ollama): free, nothing leaves your machine."
+  },
+  "actionTitle": { "message": "Summarize the video" }
+}
