@@ -1,8 +1,9 @@
 import { extractTranscript, seekTo } from './transcript.js';
 import { listModels } from './ollama.js';
-import { summarize, parseVerdict, fmtTime } from './summarize.js';
+import { summarize, parseVerdict, fmtTime, VERDICT_EMOJI } from './summarize.js';
+import { fetchSummary, pushSummary, withoutVerdictSection } from './veille.js';
 import { renderMarkdown } from './markdown.js';
-import { t, setLocale, applyI18n, defaultUiLang, UI_LANGUAGES, OUTPUT_LANGUAGES } from './i18n.js';
+import { t, setLocale, applyI18n, defaultUiLang, UI_LANGUAGES, OUTPUT_LANGUAGES, outputLanguage } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,6 +17,7 @@ const DEFAULTS = {
   length: 'short',
   interests: '',
   badges: true,
+  veilleBase: '', // optional "veille" app: reuse and keep summaries
 };
 let settings = { ...DEFAULTS };
 
@@ -39,6 +41,7 @@ async function loadSettings() {
   $('base').value = settings.base;
   $('badgeBase').value = settings.badgeBase;
   $('interests').value = settings.interests;
+  $('veilleBase').value = settings.veilleBase;
   $('badges').checked = settings.badges;
   document.querySelector(`input[name="length"][value="${settings.length}"]`).checked = true;
   await loadModels();
@@ -113,6 +116,11 @@ $('lang').addEventListener('change', (e) => saveSettings({ lang: e.target.value 
 $('refreshModels').addEventListener('click', loadModels);
 $('badges').addEventListener('change', (e) => saveSettings({ badges: e.target.checked }));
 $('interests').addEventListener('change', (e) => saveSettings({ interests: e.target.value.trim() }));
+$('veilleBase').addEventListener('change', (e) => {
+  const v = e.target.value.trim().replace(/\/+$/, '');
+  e.target.value = v;
+  saveSettings({ veilleBase: v });
+});
 document.querySelectorAll('input[name="length"]').forEach((r) =>
   r.addEventListener('change', (e) => saveSettings({ length: e.target.value })),
 );
@@ -162,6 +170,10 @@ async function refreshTab() {
   if (current && !jobs.has(videoId)) {
     const cached = (await chrome.storage.local.get(`sum:${videoId}`))[`sum:${videoId}`];
     if (cached && !jobs.has(videoId)) jobs.set(videoId, { phase: 'done', text: cached.md, meta: cached, cached: true });
+    else if (!cached) {
+      render();
+      await loadFromVeille(videoId);
+    }
   }
   render();
 }
@@ -171,6 +183,21 @@ chrome.tabs.onUpdated.addListener((_id, info, tab) => {
   if (tab.active && (info.url || info.title)) refreshTab();
 });
 chrome.windows.onFocusChanged.addListener(refreshTab);
+
+// ---------------------------------------------------------------- Veille app
+
+// A summary the watch app already has is shown at once (Claude's detailed one first).
+async function loadFromVeille(videoId) {
+  const v = await fetchSummary(settings.veilleBase, videoId);
+  const body = v && (v.resume_claude_md || v.resume_md);
+  if (!body || jobs.has(videoId)) return;
+  const lang = outputLanguage(settings.lang);
+  const verdict = v.verdict
+    ? `## ${lang.headings.verdict}\n${VERDICT_EMOJI[v.verdict]} ${lang.verdicts[v.verdict]}${v.raison ? ` : ${v.raison}` : ''}\n\n`
+    : '';
+  const meta = { title: v.titre, author: v.chaine, model: t('fromVeille'), fromVeille: true, at: Date.now() };
+  jobs.set(videoId, { phase: 'done', text: verdict + body, meta, cached: true });
+}
 
 // ---------------------------------------------------------------- Generation
 
@@ -220,6 +247,15 @@ async function run() {
     await chrome.storage.local.set({
       [`sum:${videoId}`]: { ...job.meta, md },
       ...(verdict ? { [`verdict:${videoId}`]: { ...verdict, at: Date.now() } } : {}),
+    });
+    pushSummary(settings.veilleBase, {
+      id: videoId,
+      titre: job.meta.title || current?.title || '',
+      chaine: job.meta.author || '',
+      verdict: verdict?.v || '',
+      raison: verdict?.reason || '',
+      resume_md: withoutVerdictSection(md),
+      modele: settings.model,
     });
   } catch (e) {
     if (e.name === 'AbortError') update({ phase: job.text ? 'done' : 'idle', controller: null });

@@ -11,6 +11,7 @@
   const verdicts = new Map(); // videoId → { v, reason } | { v: 'none' } | 'pending' | 'error'
   const titles = new Map(); // videoId → { title, channel } read from the thumbnail
   const triaged = new Set(); // videoIds already sent to the title triage
+  const askedVeille = new Set(); // videoIds already looked up in the watch app
   let hasBriefing = false;
   const visible = new Set(); // <a> anchors currently on screen
   let busy = false;
@@ -206,6 +207,23 @@
     if (!ids.length) return hideStatus();
     busy = true;
 
+    // Step 0: verdicts the watch app already has (no Ollama call at all).
+    const unasked = ids.filter((id) => !askedVeille.has(id));
+    if (unasked.length) {
+      unasked.forEach((id) => askedVeille.add(id));
+      try {
+        const known = await chrome.runtime.sendMessage({ type: 'known', ids: unasked });
+        for (const [id, v] of Object.entries(known || {})) {
+          verdicts.set(id, v);
+          repaintAll(id);
+        }
+      } catch {
+        /* extension reloaded */
+      }
+      busy = false;
+      return pump();
+    }
+
     if (hasBriefing && ids.some((id) => !triaged.has(id))) {
       await triage(ids);
       busy = false;
@@ -276,6 +294,7 @@
       // Cache cleared from the side panel: forget everything, including errors, and start over.
       verdicts.clear();
       triaged.clear();
+      askedVeille.clear();
       repaintAll();
       chrome.storage.sync.get({ badges: true }).then((s) => s.badges && start());
       return;

@@ -1,5 +1,6 @@
 import { quickVerdict, triageTitles } from './summarize.js';
 import { t, setLocale, defaultUiLang, badgeLabels } from './i18n.js';
+import { fetchVerdicts } from './veille.js';
 
 // Clicking the toolbar icon opens the side panel.
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
@@ -33,7 +34,7 @@ chrome.runtime.onStartup.addListener(installOllamaRule);
 
 // ------------------------------------------------------------------ Thumbnail verdicts
 
-const DEFAULTS = { uiLang: defaultUiLang(), base: 'http://localhost:11434', model: '', badgeBase: '', badgeModel: '', lang: defaultUiLang(), interests: '' };
+const DEFAULTS = { uiLang: defaultUiLang(), base: 'http://localhost:11434', model: '', badgeBase: '', badgeModel: '', veilleBase: '', lang: defaultUiLang(), interests: '' };
 // A settings problem: the content script stops instead of retrying every thumbnail.
 const fatal = (message) => Object.assign(new Error(message), { fatal: true });
 
@@ -71,6 +72,20 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     chrome.storage.sync.get(DEFAULTS).then(({ uiLang }) => {
       setLocale(uiLang);
       sendResponse(badgeLabels());
+    });
+    return true;
+  }
+
+  // Verdicts the watch app already has: answered outside the Ollama queue.
+  if (msg?.type === 'known') {
+    chrome.storage.sync.get(DEFAULTS).then(async ({ veilleBase }) => {
+      const found = await fetchVerdicts(veilleBase, msg.ids || []);
+      const at = Date.now();
+      const entries = Object.entries(found).filter(([, v]) => ['watch', 'skim', 'skip', 'off'].includes(v?.v));
+      if (entries.length) {
+        await chrome.storage.local.set(Object.fromEntries(entries.map(([id, v]) => [`verdict:${id}`, { ...v, at, from: 'veille' }])));
+      }
+      sendResponse(Object.fromEntries(entries));
     });
     return true;
   }
