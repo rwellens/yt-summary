@@ -28,7 +28,7 @@ After changing the code: click ↻ on the extension card, then reload the YouTub
 | `src/sidepanel.*` | UI: streamed summary, clickable timestamps (jump in the video), per-video cache, settings |
 | `src/background.js` | Opens the panel, runs thumbnail verdicts (single queue), and strips the `Origin` header from the extension's requests to localhost (otherwise Ollama answers 403) |
 
-Settings (top-right icon): interface language, summary server and model, thumbnail server and model (e.g. a local Ollama for thumbnails and a remote one for summaries), summary language, length (short / detailed), thumbnail verdicts on/off, interests briefing.
+Settings (top-right icon): interface language, summary server and model, thumbnail server and model (e.g. a local Ollama for thumbnails and a remote one for summaries), summary language, length (short / detailed), thumbnail verdicts on/off, interests briefing (used for thumbnail badges only: a summary you ask for is judged on its own merits, never flagged 🚫).
 
 Optional **watch app** ("veille", a separate self-hosted app with the same small API): when set in the settings, summaries it already has are shown instantly, thumbnail verdicts it knows are reused without calling Ollama, and every new summary made here is sent to it (`GET /api/videos/<id>`, `GET /api/verdicts?ids=`, `POST /api/videos`). See `src/veille.js`.
 

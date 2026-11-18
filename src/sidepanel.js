@@ -233,7 +233,6 @@ async function run() {
       model: settings.model,
       lang: settings.lang,
       length: settings.length,
-      interests: settings.interests,
       meta: result.meta,
       segments: result.segments,
       signal: job.controller.signal,

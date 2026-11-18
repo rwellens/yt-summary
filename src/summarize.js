@@ -101,16 +101,17 @@ function systemPrompt(lang) {
   ].join(' ');
 }
 
-function finalInstructions(lang, length, interests) {
+// The reader's interests are deliberately left out: asking for a summary means
+// the reader already chose this video, so it is judged on its own merits.
+function finalInstructions(lang, length) {
   const detailed = length === 'long';
   const h = outputLanguage(lang).headings;
-  const profile = interests?.trim() ? `\nReader's interests: ${interests.trim()}\nTake them into account for the verdict.\n` : '';
-  return `${profile}
+  return `
 Write the summary straight to the point: verdict and conclusion first, details afterwards. Follow exactly this structure, with these exact headings:
 
 ## ${h.verdict}
 A single line starting with one of these emojis and its exact label, then " — " and the reason in one sentence:
-${verdictCriteria(lang, !!interests?.trim())}
+${verdictCriteria(lang, false)}
 Be demanding: the reader's time is precious.
 
 ## ${h.conclusion}
@@ -129,14 +130,13 @@ ${detailed ? '8 to 15' : '4 to 7'} bullets in chronological order. Each bullet s
  * @param {string} o.model
  * @param {string} o.lang          key of OUTPUT_LANGUAGES (i18n.js)
  * @param {'short'|'long'} o.length
- * @param {string} [o.interests]   reader's interests, used for the verdict
  * @param {object} o.meta          { title, author, lengthSeconds }
  * @param {Array}  o.segments      [{ start, text }]
  * @param {AbortSignal} o.signal
  * @param {(msg: string) => void} o.onStatus   UI status messages
  * @param {(chunk: string, full: string) => void} o.onToken
  */
-export async function summarize({ base, model, lang, length, interests, meta, segments, signal, onStatus, onToken }) {
+export async function summarize({ base, model, lang, length, meta, segments, signal, onStatus, onToken }) {
   const common = { model, ...(await thinkOff(base, model)) };
   const system = { role: 'system', content: systemPrompt(lang) };
 
@@ -179,7 +179,7 @@ export async function summarize({ base, model, lang, length, interests, meta, se
       options: { temperature: 0.3, num_ctx: numCtx(material.length) },
       messages: [
         system,
-        { role: 'user', content: `${header(meta)}\n${label}:\n<<<\n${material}\n>>>\n\n${finalInstructions(lang, length, interests)}` },
+        { role: 'user', content: `${header(meta)}\n${label}:\n<<<\n${material}\n>>>\n\n${finalInstructions(lang, length)}` },
       ],
     },
     { signal, onToken },
